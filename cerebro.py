@@ -1,9 +1,14 @@
+import os
 
 import psutil
 from mcp.server.fastmcp import FastMCP
 
+port = os.getenv("CEREBRO_PORT", 8000)
 
-mcp = FastMCP("cerebro")
+mcp = FastMCP(
+    name="cerebro",
+    host="0.0.0.0",
+    port=port)
 
 
 @mcp.tool()
@@ -25,23 +30,30 @@ def get_all_processes() -> list[dict]:
     return processes
 
 @mcp.tool()
-def kill_process(pid: int) -> str:
+def kill_process(pid: int) -> dict:
     """ This tool kills a process by its PID
     :param pid: Process ID
-    :return: Success or failure message
+    :return: Dictionary with status and message
     """
     try:
         proc = psutil.Process(pid)
         proc.terminate()
         proc.wait(timeout=3)
-        return f"Process {pid} terminated successfully."
+        return {"status": "success", "message": f"Process {pid} terminated."}
     except psutil.NoSuchProcess:
-        return f"Process {pid} does not exist."
+        return {"status": "failure", "message": f"Process {pid} does not exist."}
     except psutil.AccessDenied:
-        return f"Access denied to terminate process {pid}."
+        return {"status": "failure", "message": f"Access denied to terminate process {pid}."}
     except psutil.TimeoutExpired:
-        return f"Timeout expired while terminating process {pid}."
+        return {"status": "failure", "message": f"Timeout expired while terminating process {pid}."}
 
+def run():
+    mcp.run(
+        transport="streamable-http"
+    )
+
+def main():
+    run()
 
 if __name__ == "__main__":
-    mcp.run(transport="stdio")
+    main()
